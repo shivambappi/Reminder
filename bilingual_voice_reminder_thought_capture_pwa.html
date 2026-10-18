@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="hi" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SunoYad - Bilingual Voice & Thought Reminder</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Poppins', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        .dark .glass-card {
+            background: rgba(30, 41, 59, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.15); opacity: 0.4; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+        .animate-pulse-ring {
+            animation: pulse-ring 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
+        }
+        /* Custom scrollbar for mobile feel */
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(156, 163, 175, 0.5); border-radius: 9999px; }
+    </style>
+</head>
+<body class="h-full bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col transition-colors duration-200">
+
+    <!-- Top Navigation Header -->
+    <header class="sticky top-0 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center space-x-2.5">
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20">
+                <i class="fa-solid fa-microphone-lines text-base"></i>
+            </div>
+            <div>
+                <h1 class="font-display font-bold text-lg leading-tight tracking-tight flex items-center gap-1.5">
+                    SunoYad <span class="text-[10px] font-semibold bg-indigo-100 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-800">Bilingual AI</span>
+                </h1>
+                <p class="text-xs text-slate-500 dark:text-slate-400">Hindi • English • Hinglish Assistant</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-2">
+            <!-- PWA Install Guide Button -->
+            <button onclick="openInstallModal()" class="px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:hover:bg-indigo-900/50 text-indigo-600 dark:text-indigo-300 text-xs font-medium transition flex items-center gap-1.5 border border-indigo-200 dark:border-indigo-800/60" title="How to add to Phone Home Screen">
+                <i class="fa-solid fa-mobile-screen-button"></i>
+                <span class="hidden sm:inline">Phone App Guide</span>
+            </button>
+            <!-- Dark Mode Toggle -->
+            <button onclick="toggleDarkMode()" class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 transition" title="Toggle Theme">
+                <i id="theme-icon" class="fa-solid fa-moon text-sm"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 overflow-y-auto pb-32 px-4 pt-4 max-w-xl mx-auto w-full space-y-5">
+
+        <!-- Active Mode & Language Status Bar -->
+        <div class="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-3.5 shadow-sm flex items-center justify-between text-xs">
+            <div class="flex items-center space-x-2">
+                <span class="relative flex h-2.5 w-2.5">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                </span>
+                <span class="font-medium text-slate-600 dark:text-slate-300">Listening Engine:</span>
+                <span id="stt-status-badge" class="font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800/50">Ready (Web Speech API)</span>
+            </div>
+            <div class="text-slate-400 dark:text-slate-500 font-mono text-[11px]" id="current-time-display">
+                --:--
+            </div>
+        </div>
+
+        <!-- Central Voice Command Station (Hero Section) -->
+        <div class="glass-card border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-6 text-center shadow-lg relative overflow-hidden">
+            <!-- Background Glow -->
+            <div class="absolute -top-16 -right-16 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none"></div>
+            <div class="absolute -bottom-16 -left-16 w-32 h-32 bg-violet-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+            <h2 class="font-display font-bold text-lg mb-1 text-slate-900 dark:text-white">Tap & Speak or Type Command</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mb-6">
+                Try: <span class="italic text-indigo-600 dark:text-indigo-400 font-medium">"Alarm subah 7 baje"</span>, <span class="italic text-indigo-600 dark:text-indigo-400 font-medium">"Remind me to call manager at 3pm"</span>, or <span class="italic text-indigo-600 dark:text-indigo-400 font-medium">"Yaad: Buy groceries tomorrow"</span>
+            </p>
+
+            <!-- Giant Microphone Button Container -->
+            <div class="relative flex items-center justify-center my-4">
+                <div id="mic-pulse" class="absolute w-28 h-28 rounded-full bg-indigo-500/20 dark:bg-indigo-500/10 hidden animate-pulse-ring pointer-events-none"></div>
+                <button id="mic-btn" onclick="toggleVoiceRecording()" class="relative z-10 w-20 h-20 rounded-full bg-gradient-to-tr from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-xl shadow-indigo-600/30 flex items-center justify-center transition-all transform active:scale-95 focus:outline-none">
+                    <i id="mic-icon" class="fa-solid fa-microphone text-2xl"></i>
+                </button>
+            </div>
+
+            <div id="recording-status-text" class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 h-5 mb-4 transition-all">
+                Tap mic to start speaking (Hindi / English)
+            </div>
+
+            <!-- Text Input Fallback / Direct Command Box -->
+            <div class="relative mt-2">
+                <input type="text" id="command-input" placeholder="Ya type karein e.g. 'Note: Project deadline is Friday'..." 
+                    class="w-full pl-4 pr-24 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white placeholder-slate-400 transition"
+                    onkeypress="handleKeyPress(event)">
+                <button onclick="processTypedCommand()" class="absolute right-1.5 top-1.5 bottom-1.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl transition shadow-sm flex items-center gap-1">
+                    <span>Add</span>
+                    <i class="fa-solid fa-arrow-right text-[10px]"></i>
+                </button>
+            </div>
+
+            <!-- Quick Trigger Tag Pills -->
+            <div class="flex flex-wrap gap-1.5 mt-4 justify-center items-center">
+                <span class="text-[11px] text-slate-400 font-medium mr-1">Quick Triggers:</span>
+                <button onclick="insertPrefix('Alarm ')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-medium rounded-lg transition text-slate-700 dark:text-slate-300">
+                    ⏰ Alarm
+                </button>
+                <button onclick="insertPrefix('Remind ')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-medium rounded-lg transition text-slate-700 dark:text-slate-300">
+                    🔔 Remind
+                </button>
+                <button onclick="insertPrefix('Yaad ')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-medium rounded-lg transition text-slate-700 dark:text-slate-300">
+                    💡 Yaad
+                </button>
+                <button onclick="insertPrefix('Note ')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-medium rounded-lg transition text-slate-700 dark:text-slate-300">
+                    📝 Note
+                </button>
+            </div>
+        </div>
+
+        <!-- Tabs Navigation for Items -->
+        <div class="flex rounded-2xl bg-slate-200/70 dark:bg-slate-900 p-1 border border-slate-300/50 dark:border-slate-800">
+            <button onclick="switchTab('reminders')" id="tab-btn-reminders" class="flex-1 py-2.5 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm">
+                <i class="fa-solid fa-bell"></i>
+                <span>Alarms & Reminders (<span id="count-reminders">0</span>)</span>
+            </button>
+            <button onclick="switchTab('thoughts')" id="tab-btn-thoughts" class="flex-1 py-2.5 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
+                <i class="fa-solid fa-lightbulb"></i>
+                <span>To Apply / Thoughts (<span id="count-thoughts">0</span>)</span>
+            </button>
+        </div>
+
+        <!-- Reminders / Alarms Section -->
+        <div id="tab-content-reminders" class="space-y-3">
+            <div class="flex items-center justify-between px-1">
+                <h3 class="font-display font-semibold text-sm text-slate-700 dark:text-slate-300">Scheduled Alarms & Reminders</h3>
+                <button onclick="clearAllItems('reminders')" class="text-xs text-slate-400 hover:text-rose-500 transition">Clear All</button>
+            </div>
+            <div id="reminders-list" class="space-y-2.5">
+                <!-- Dynamically injected items -->
+            </div>
+        </div>
+
+        <!-- Thoughts / To Apply Section -->
+        <div id="tab-content-thoughts" class="space-y-3 hidden">
+            <div class="flex items-center justify-between px-1">
+                <h3 class="font-display font-semibold text-sm text-slate-700 dark:text-slate-300">Captured Thoughts & To-Apply Board</h3>
+                <button onclick="clearAllItems('thoughts')" class="text-xs text-slate-400 hover:text-rose-500 transition">Clear All</button>
+            </div>
+            <div id="thoughts-list" class="space-y-2.5">
+                <!-- Dynamically injected items -->
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Custom Toast / Modal Dialog -->
+    <div id="custom-modal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-4">
+            <div class="w-12 h-12 rounded-2xl bg-indigo-100 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto text-xl">
+                <i id="modal-icon" class="fa-solid fa-bell"></i>
+            </div>
+            <div class="text-center space-y-1">
+                <h3 id="modal-title" class="font-display font-bold text-lg text-slate-900 dark:text-white">Alert Title</h3>
+                <p id="modal-message" class="text-xs text-slate-500 dark:text-slate-400">Message description goes here...</p>
+            </div>
+            <div id="modal-actions" class="flex gap-2 pt-2">
+                <button onclick="closeModal()" class="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 transition">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PWA Install Guide Modal -->
+    <div id="install-modal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center">
+                        <i class="fa-solid fa-mobile-screen"></i>
+                    </div>
+                    <h3 class="font-display font-bold text-base text-slate-900 dark:text-white">Add SunoYad to Phone Home Screen</h3>
+                </div>
+                <button onclick="closeInstallModal()" class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 flex items-center justify-center hover:bg-slate-200 transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4 text-xs text-slate-600 dark:text-slate-300">
+                <div class="bg-indigo-50 dark:bg-indigo-950/40 p-3.5 rounded-2xl border border-indigo-200 dark:border-indigo-900 space-y-1">
+                    <p class="font-semibold text-indigo-900 dark:text-indigo-300"><i class="fa-solid fa-lightbulb mr-1"></i> Why install as a PWA?</p>
+                    <p class="text-indigo-700 dark:text-indigo-400 leading-relaxed">Runs just like a native iPhone or Android app without needing the App Store. Works offline and stays on your home screen for quick voice triggers!</p>
+                </div>
+
+                <div class="space-y-3">
+                    <h4 class="font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                        <i class="fa-brands fa-apple text-base"></i> For iPhone / Safari:
+                    </h4>
+                    <ol class="list-decimal pl-4 space-y-1.5 text-slate-500 dark:text-slate-400">
+                        <li>Open this web app link in <b>Safari</b> on your iPhone.</li>
+                        <li>Tap the <b>Share</b> button <i class="fa-solid fa-arrow-up-from-bracket inline"></i> at the bottom toolbar.</li>
+                        <li>Scroll down and tap <b class="text-slate-800 dark:text-slate-200">"Add to Home Screen"</b> <i class="fa-solid fa-square-plus inline"></i>.</li>
+                        <li>Tap <b>Add</b> in the top right. SunoYad is now on your home screen!</li>
+                    </ol>
+                </div>
+
+                <div class="space-y-3 pt-2 border-t border-slate-200 dark:border-slate-800">
+                    <h4 class="font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                        <i class="fa-brands fa-android text-base"></i> For Android / Chrome:
+                    </h4>
+                    <ol class="list-decimal pl-4 space-y-1.5 text-slate-500 dark:text-slate-400">
+                        <li>Open this web app link in <b>Google Chrome</b> on your Android device.</li>
+                        <li>Tap the <b>three dots menu</b> <i class="fa-solid fa-ellipsis-vertical inline"></i> in the top right corner.</li>
+                        <li>Tap <b class="text-slate-800 dark:text-slate-200">"Add to Home screen"</b> or <b class="text-slate-800 dark:text-slate-200">"Install app"</b>.</li>
+                        <li>Confirm the prompt. You can now launch it instantly like any other app!</li>
+                    </ol>
+                </div>
+            </div>
+
+            <button onclick="closeInstallModal()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl text-xs transition shadow-md shadow-indigo-600/20">
+                Got it, Thanks!
+            </button>
+        </div>
+    </div>
+
+    <!-- Application Script Logic -->
+    <script>
+        // State management stored in localStorage
+        let state = {
+            items: JSON.parse(localStorage.getItem('sunoyad_items') || '[]'),
+            darkMode: localStorage.getItem('sunoyad_dark') === 'true',
+            activeTab: 'reminders'
+        };
+
+        // Initialize Theme
+        if (state.darkMode) {
+            document.documentElement.classList.add('dark');
+            document.getElementById('theme-icon').className = "fa-solid fa-sun text-sm";
+        }
+
+        // Initialize Speech Recognition if supported
+        let recognition = null;
+        let isRecording = false;
+
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = true;
+            recognition.lang = 'hi-IN'; // Supports Hindi, English & Hinglish mix
+
+            recognition.onstart = () => {
+                isRecording = true;
+                document.getElementById('mic-pulse').classList.remove('hidden');
+                document.getElementById('mic-btn').classList.add('bg-rose-600', 'from-rose-600', 'to-pink-600');
+                document.getElementById('mic-btn').classList.remove('from-indigo-600', 'to-violet-600');
+                document.getElementById('mic-icon').className = "fa-solid fa-stop text-2xl";
+                document.getElementById('recording-status-text').innerText = "Sun raha hoon... (Listening in Hindi/English)";
+            };
+
+            recognition.onresult = (event) => {
+                let transcript = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    transcript += event.results[i][0].transcript;
+                }
+                document.getElementById('command-input').value = transcript;
+            };
+
+            recognition.onerror = (event) => {
+                console.error("Speech recognition error", event.error);
+                stopVoiceRecording();
+            };
+
+            recognition.onend = () => {
+                stopVoiceRecording();
+                const text = document.getElementById('command-input').value.trim();
+                if (text) {
+                    parseAndAddItem(text);
+                    document.getElementById('command-input').value = '';
+                }
+            };
+        } else {
+            document.getElementById('stt-status-badge').innerText = "Keyboard Mode (Speech API unavailable)";
+            document.getElementById('stt-status-badge').className = "font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-800/50";
+        }
+
+        function toggleVoiceRecording() {
+            if (!recognition) {
+                showModal("Voice Not Supported", "Your browser does not support Web Speech API. Please type your command below.", "fa-keyboard");
+                return;
+            }
+            if (isRecording) {
+                recognition.stop();
+            } else {
+                try {
+                    recognition.start();
+                } catch(e) {
+                    console.error(e);
+                }
+            }
+        }
+
+        function stopVoiceRecording() {
+            isRecording = false;
+            document.getElementById('mic-pulse').classList.add('hidden');
+            document.getElementById('mic-btn').classList.remove('bg-rose-600', 'from-rose-600', 'to-pink-600');
+            document.getElementById('mic-btn').classList.add('from-indigo-600', 'to-violet-600');
+            document.getElementById('mic-icon').className = "fa-solid fa-microphone text-2xl";
+            document.getElementById('recording-status-text').innerText = "Tap mic to start speaking (Hindi / English)";
+        }
+
+        function toggleDarkMode() {
+            state.darkMode = !state.darkMode;
+            localStorage.setItem('sunoyad_dark', state.darkMode);
+            if (state.darkMode) {
+                document.documentElement.classList.add('dark');
+                document.getElementById('theme-icon').className = "fa-solid fa-sun text-sm";
+            } else {
+                document.documentElement.classList.remove('dark');
+                document.getElementById('theme-icon').className = "fa-solid fa-moon text-sm";
+            }
+        }
+
+        function insertPrefix(prefix) {
+            const input = document.getElementById('command-input');
+            input.value = prefix + input.value;
+            input.focus();
+        }
+
+        function handleKeyPress(e) {
+            if (e.key === 'Enter') {
+                processTypedCommand();
+            }
+        }
+
+        function processTypedCommand() {
+            const input = document.getElementById('command-input');
+            const text = input.value.trim();
+            if (!text) return;
+            parseAndAddItem(text);
+            input.value = '';
+        }
+
+        // Intelligent Bilingual Parser (Handles Alarm, Remind, Yaad, Note & automatic category classification)
+        function parseAndAddItem(rawText) {
+            const lower = rawText.toLowerCase();
+            let type = 'thought'; // default category
+            let title = rawText;
+            let timeStr = null;
+
+            // Check single word triggers / prefixes
+            if (lower.startsWith('alarm') || lower.includes('alarm laga')) {
+                type = 'alarm';
+                title = rawText.replace(/^(alarm|alarm laga|set alarm)\s*/i, '');
+                timeStr = extractTime(lower);
+            } else if (lower.startsWith('remind') || lower.startsWith('yaad') || lower.includes('yaad dila')) {
+                type = 'reminder';
+                title = rawText.replace(/^(remind me to|remind|yaad dila dena|yaad)\s*/i, '');
+                timeStr = extractTime(lower);
+            } else if (lower.startsWith('note') || lower.startsWith('vichar')) {
+                type = 'thought';
+                title = rawText.replace(/^(note|vichar)\s*/i, '');
+            } else {
+                // If it contains words like 'baje' or 'am'/'pm' or 'tomorrow' / 'kal', classify as reminder/alarm
+                if (lower.includes('baje') || lower.includes('am') || lower.includes('pm') || lower.includes('kal') || lower.includes('aaj')) {
+                    type = 'reminder';
+                    timeStr = extractTime(lower);
+                } else {
+                    type = 'thought'; // General thought to apply later
+                }
+            }
+
+            if (!title) title = rawText;
+
+            const newItem = {
+                id: 'item_' + Date.now(),
+                type: (type === 'thought') ? 'thought' : 'reminder',
+                subType: type === 'alarm' ? 'Alarm' : (type === 'reminder' ? 'Reminder' : 'Thought'),
+                title: title,
+                raw: rawText,
+                time: timeStr || getSmartDefaultTime(type),
+                createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                completed: false
+            };
+
+            state.items.unshift(newItem);
+            saveAndRender();
+
+            // Notify user
+            showModal(
+                newItem.subType + ' Created!', 
+                `Successfully captured: "${title}" (${newItem.time})`, 
+                newItem.subType === 'Alarm' ? 'fa-clock' : (newItem.subType === 'Reminder' ? 'fa-bell' : 'fa-lightbulb')
+            );
+        }
+
+        function extractTime(text) {
+            // Simple heuristic extractor for demo demo & display
+            if (text.includes('kal subah') || text.includes('tomorrow morning')) return 'Tomorrow 9:00 AM';
+            if (text.includes('kal shaam') || text.includes('tomorrow evening')) return 'Tomorrow 6:00 PM';
+            if (text.includes('aaj raat') || text.includes('tonight')) return 'Tonight 9:00 PM';
+            
+            // Match digits with baje or am/pm
+            const timeMatch = text.match(/(\d{1,2})\s*(baje|am|pm|:)/i);
+            if (timeMatch) {
+                return 'Today ' + timeMatch[0].toUpperCase();
+            }
+            return 'Today 5:00 PM';
+        }
+
+        function getSmartDefaultTime(type) {
+            if (type === 'thought') return 'To Apply / Review';
+            return 'Today in a few hours';
+        }
+
+        function saveAndRender() {
+            localStorage.setItem('sunoyad_items', JSON.stringify(state.items));
+            renderItems();
+        }
+
+        function switchTab(tab) {
+            state.activeTab = tab;
+            const btnReminders = document.getElementById('tab-btn-reminders');
+            const btnThoughts = document.getElementById('tab-btn-thoughts');
+            const contentReminders = document.getElementById('tab-content-reminders');
+            const contentThoughts = document.getElementById('tab-content-thoughts');
+
+            if (tab === 'reminders') {
+                btnReminders.className = "flex-1 py-2.5 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm";
+                btnThoughts.className = "flex-1 py-2.5 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white";
+                contentReminders.classList.remove('hidden');
+                contentThoughts.classList.add('hidden');
+            } else {
+                btnThoughts.className = "flex-1 py-2.5 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2 bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm";
+                btnReminders.className = "flex-1 py-2.5 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white";
+                contentThoughts.classList.remove('hidden');
+                contentReminders.classList.add('hidden');
+            }
+        }
+
+        function renderItems() {
+            const remindersList = document.getElementById('reminders-list');
+            const thoughtsList = document.getElementById('thoughts-list');
+
+            const reminders = state.items.filter(i => i.type === 'reminder');
+            const thoughts = state.items.filter(i => i.type === 'thought');
+
+            document.getElementById('count-reminders').innerText = reminders.length;
+            document.getElementById('count-thoughts').innerText = thoughts.length;
+
+            // Render Reminders
+            if (reminders.length === 0) {
+                remindersList.innerHTML = `
+                    <div class="text-center py-10 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-6">
+                        <div class="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto mb-3 text-lg">
+                            <i class="fa-solid fa-bell-slash"></i>
+                        </div>
+                        <p class="text-xs font-semibold text-slate-700 dark:text-slate-300">No active alarms or reminders</p>
+                        <p class="text-[11px] text-slate-400 mt-1">Tap the mic and say e.g. "Alarm subah 6 baje"</p>
+                    </div>`;
+            } else {
+                remindersList.innerHTML = reminders.map(item => `
+                    <div class="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 flex items-start justify-between shadow-sm transition hover:border-indigo-300 dark:hover:border-indigo-800">
+                        <div class="flex items-start space-x-3">
+                            <button onclick="toggleComplete('${item.id}')" class="mt-0.5 w-5 h-5 rounded-lg border ${item.completed ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300 dark:border-slate-700'} flex items-center justify-center text-xs transition">
+                                ${item.completed ? '<i class="fa-solid fa-check text-[10px]"></i>' : ''}
+                            </button>
+                            <div class="space-y-1">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-md ${item.subType === 'Alarm' ? 'bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900' : 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-900'}">${item.subType}</span>
+                                    <span class="text-[11px] text-slate-400 font-medium"><i class="fa-regular fa-clock mr-1"></i>${item.time}</span>
+                                </div>
+                                <p class="text-xs font-medium text-slate-800 dark:text-slate-200 ${item.completed ? 'line-through text-slate-400 dark:text-slate-500' : ''}">${escapeHtml(item.title)}</p>
+                            </div>
+                        </div>
+                        <button onclick="deleteItem('${item.id}')" class="text-slate-400 hover:text-rose-500 p-1 transition" title="Delete">
+                            <i class="fa-solid fa-trash-can text-xs"></i>
+                        </button>
+                    </div>
+                `).join('');
+            }
+
+            // Render Thoughts
+            if (thoughts.length === 0) {
+                thoughtsList.innerHTML = `
+                    <div class="text-center py-10 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-6">
+                        <div class="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto mb-3 text-lg">
+                            <i class="fa-solid fa-lightbulb"></i>
+                        </div>
+                        <p class="text-xs font-semibold text-slate-700 dark:text-slate-300">No thoughts captured yet</p>
+                        <p class="text-[11px] text-slate-400 mt-1">Say "Note: my idea" to save thoughts to apply later</p>
+                    </div>`;
+            } else {
+                thoughtsList.innerHTML = thoughts.map(item => `
+                    <div class="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 flex items-start justify-between shadow-sm transition hover:border-amber-300 dark:hover:border-amber-800">
+                        <div class="flex items-start space-x-3">
+                            <button onclick="toggleComplete('${item.id}')" class="mt-0.5 w-5 h-5 rounded-lg border ${item.completed ? 'bg-amber-600 border-amber-600 text-white' : 'border-slate-300 dark:border-slate-700'} flex items-center justify-center text-xs transition">
+                                ${item.completed ? '<i class="fa-solid fa-check text-[10px]"></i>' : ''}
+                            </button>
+                            <div class="space-y-1">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900">Thought / To Apply</span>
+                                    <span class="text-[11px] text-slate-400">${item.createdAt}</span>
+                                </div>
+                                <p class="text-xs font-medium text-slate-800 dark:text-slate-200 ${item.completed ? 'line-through text-slate-400 dark:text-slate-500' : ''}">${escapeHtml(item.title)}</p>
+                            </div>
+                        </div>
+                        <button onclick="deleteItem('${item.id}')" class="text-slate-400 hover:text-rose-500 p-1 transition" title="Delete">
+                            <i class="fa-solid fa-trash-can text-xs"></i>
+                        </button>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function toggleComplete(id) {
+            const item = state.items.find(i => i.id === id);
+            if (item) {
+                item.completed = !item.completed;
+                saveAndRender();
+            }
+        }
+
+        function deleteItem(id) {
+            state.items = state.items.filter(i => i.id !== id);
+            saveAndRender();
+        }
+
+        function clearAllItems(type) {
+            if (type === 'reminders') {
+                state.items = state.items.filter(i => i.type !== 'reminder');
+            } else {
+                state.items = state.items.filter(i => i.type !== 'thought');
+            }
+            saveAndRender();
+        }
+
+        function showModal(title, msg, iconClass = 'fa-bell') {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-message').innerText = msg;
+            document.getElementById('modal-icon').className = "fa-solid " + iconClass;
+            document.getElementById('custom-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('custom-modal').classList.add('hidden');
+        }
+
+        function openInstallModal() {
+            document.getElementById('install-modal').classList.remove('hidden');
+        }
+
+        function closeInstallModal() {
+            document.getElementById('install-modal').classList.add('hidden');
+        }
+
+        function escapeHtml(text) {
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+        }
+
+        // Live clock tick
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('current-time-display').innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }, 1000);
+
+        // Initial render
+        renderItems();
+    </script>
+</body>
+</html>
